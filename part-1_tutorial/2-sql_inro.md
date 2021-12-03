@@ -90,8 +90,7 @@ mydb=> SELECT * FROM weather;
 ---------+---------+---------+------+------------
  Nairobi |      13 |      21 |  0.1 | 2021-05-26
  Mombasa |      23 |      28 |    0 | 2021-05-26
- Nairobi |      12 |      22 | 0.18 | 2021-05-27
-(3 rows)
+(2 rows)
 ```
 
 `*` is shorthand for "all columns". You can specify columns *(recommended)*:
@@ -102,11 +101,10 @@ mydb=> SELECT date, city, prcp FROM weather;
 ------------+---------+------
  2021-05-26 | Nairobi |  0.1
  2021-05-26 | Mombasa |    0
- 2021-05-27 | Nairobi | 0.18
-(3 rows)
+(2 rows)
 ```
 
-You can write expressions:
+You can use expressions:
 
 ```sql
 mydb=> SELECT date, city, (temp_hi+temp_lo)/2 as avg_temp FROM weather;
@@ -114,16 +112,14 @@ mydb=> SELECT date, city, (temp_hi+temp_lo)/2 as avg_temp FROM weather;
 ------------+---------+----------
  2021-05-26 | Nairobi |       17
  2021-05-26 | Mombasa |       25
- 2021-05-27 | Nairobi |       17
-(3 rows)
+(2 rows)
 
 mydb=> SELECT * FROM weather ORDER BY city;
   city   | temp_lo | temp_hi | prcp |    date    
 ---------+---------+---------+------+------------
  Mombasa |      23 |      28 |    0 | 2021-05-26
  Nairobi |      13 |      21 |  0.1 | 2021-05-26
- Nairobi |      12 |      22 | 0.18 | 2021-05-27
-(3 rows)
+(2 rows)
 
 mydb=> SELECT DISTINCT city FROM weather;
   city   
@@ -145,8 +141,7 @@ mydb->   WHERE city = name;
 ---------+---------+---------+------+------------+---------------------
  Nairobi |      13 |      21 |  0.1 | 2021-05-26 | (-1.28333,36.81667)
  Mombasa |      23 |      28 |    0 | 2021-05-26 | (-4.05466,39.66359)
- Nairobi |      12 |      22 | 0.18 | 2021-05-27 | (-1.28333,36.81667)
-(3 rows)
+(2 rows)
 ```
 
 You can also use *qualified column names* (recommended) and *aliases*:
@@ -159,8 +154,7 @@ mydb->   WHERE c.name = w.city;
 ---------+---------+---------+------+------------+---------------------
  Nairobi |      13 |      21 |  0.1 | 2021-05-26 | (-1.28333,36.81667)
  Mombasa |      23 |      28 |    0 | 2021-05-26 | (-4.05466,39.66359)
- Nairobi |      12 |      22 | 0.18 | 2021-05-27 | (-1.28333,36.81667)
-(3 rows)
+(2 rows)
 ```
 
 More on joins later.
@@ -171,19 +165,33 @@ More on joins later.
 Aggregate function compute a *single result from multiple input rows*. Examples include `count`, `sum`, `avg`, `max` and `min`.
 
 ```sql
+mydb=> INSERT INTO weather (city, temp_lo, temp_hi, prcp, date) VALUES
+  ('Mombasa', 24, 27, 0.05, '2021-05-27'),
+  ('Nairobi', 11, 21, 0.2, '2021-05-27');
+INSERT 0 2
+
+mydb=> SELECT * FROM weather;
+  city   | temp_lo | temp_hi | prcp |    date    
+---------+---------+---------+------+------------
+ Nairobi |      13 |      21 |  0.1 | 2021-05-26
+ Mombasa |      23 |      28 |    0 | 2021-05-26
+ Mombasa |      24 |      27 | 0.05 | 2021-05-27
+ Nairobi |      11 |      21 |  0.2 | 2021-05-27
+(4 rows)
+
 mydb=> SELECT min(temp_lo), max(temp_hi) FROM weather;
  min | max 
 -----+-----
-  12 |  28
+  11 |  28
 (1 row)
 ```
 
 > **NOTE:** To include aggregate functions in `WHERE` clauses, you'll need to use a *subquery*. `WHERE` clauses determine which rows to include, and so are processed before aggregate functions.
 
 ```sql
-mydb=> SELECT w.city
-mydb->   FROM weather w
-mydb->   WHERE w.temp_hi = (SELECT max(temp_hi) FROM weather);
+mydb=> SELECT city
+mydb->   FROM weather
+mydb->   WHERE temp_hi = (SELECT max(temp_hi) FROM weather);
   city   
 ---------
  Mombasa
@@ -198,7 +206,7 @@ mydb->   GROUP BY city;
   city   | min 
 ---------+-----
  Mombasa |  23
- Nairobi |  12
+ Nairobi |  11
 (2 rows)
 ```
 
@@ -225,14 +233,16 @@ You can update existing rows using the `UPDATE` command:
 mydb=> UPDATE weather
 mydb->   SET temp_lo = temp_lo + 2, temp_hi = temp_hi + 3
 mydb->   WHERE city = 'Mombasa';
-UPDATE 1
+UPDATE 2
+
 mydb=> SELECT * FROM weather;
   city   | temp_lo | temp_hi | prcp |    date    
 ---------+---------+---------+------+------------
  Nairobi |      13 |      21 |  0.1 | 2021-05-26
- Nairobi |      12 |      22 | 0.18 | 2021-05-27
+ Nairobi |      11 |      21 |  0.2 | 2021-05-27
  Mombasa |      25 |      31 |    0 | 2021-05-26
-(3 rows)
+ Mombasa |      26 |      30 | 0.05 | 2021-05-27
+(4 rows)
 ```
 
 ## 7. Deletions
@@ -240,14 +250,16 @@ mydb=> SELECT * FROM weather;
 You can remove rows using the `DELETE` command:
 
 ```sql
-mydb=> DELETE FROM weather WHERE city = 'Mombasa';
+mydb=> DELETE FROM weather WHERE temp_hi > 30;
 DELETE 1
+
 mydb=> SELECT * FROM weather;
   city   | temp_lo | temp_hi | prcp |    date    
 ---------+---------+---------+------+------------
  Nairobi |      13 |      21 |  0.1 | 2021-05-26
- Nairobi |      12 |      22 | 0.18 | 2021-05-27
-(2 rows)
+ Nairobi |      11 |      21 |  0.2 | 2021-05-27
+ Mombasa |      26 |      30 | 0.05 | 2021-05-27
+(3 rows)
 ```
 
-> **NOTE:** Using `DELETE FROM tablename;` without a *qualification* will remove all rows. Exercise caution.
+> **WARNING:** Using `DELETE FROM tablename;` without a *qualification* will remove all rows. Exercise caution.

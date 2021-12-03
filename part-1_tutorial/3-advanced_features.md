@@ -2,23 +2,33 @@
 
 This chapter focuses on more advanced features of SQL that *simplify management* and *prevent loss or corruption of data*.
 
+First, let's refresh the *weather* table:
+
+```sql
+mydb=> \i 'assets/weather.sql'
+BEGIN
+DROP TABLE
+CREATE TABLE
+INSERT 0 4
+COMMIT
+```
+
 ## 1. Views
 
 Creating a view over a query *gives it a name that you can refer to* like an ordinary table:
 
 ```sql
-mydb=> CREATE VIEW combined AS
-mydb->   SELECT city, temp_lo, temp_hi, prcp, date, location
-mydb->     FROM weather, cities
-mydb->     WHERE city = name;
+mydb=> CREATE VIEW avg_temp AS
+mydb->   SELECT city, avg((temp_hi + temp_lo) / 2)  AS avg_temp
+mydb->     FROM weather
+mydb->     GROUP BY city;
 CREATE VIEW
-mydb=> SELECT * FROM combined;
-  city   | temp_lo | temp_hi | prcp |    date    |      location       
----------+---------+---------+------+------------+---------------------
- Nairobi |      13 |      21 |  0.1 | 2021-05-26 | (-1.28333,36.81667)
- Nairobi |      12 |      22 | 0.18 | 2021-05-27 | (-1.28333,36.81667)
- Mombasa |      23 |      28 |    0 | 2021-05-26 | (-4.05466,39.66359)
-(3 rows)
+mydb=> SELECT * FROM avg_temp;
+  city   |      avg_temp       
+---------+---------------------
+ Mombasa | 25.5000000000000000
+ Nairobi | 16.5000000000000000
+(2 rows)
 ```
 
 Making liberal use of views is a key aspect of *good SQL database design*. You can build views upon other views.
@@ -126,9 +136,9 @@ VALUES
 
 ```sql
 mydb=> SELECT depname, empno, salary,
-mydb->        avg(salary) OVER (PARTITION BY depname)
+mydb->        avg(salary) OVER (PARTITION BY depname) AS dep_avg_salary
 mydb->   FROM empsalary;
-  depname  | empno | salary |          avg          
+  depname  | empno | salary |    dep_avg_salary     
 -----------+-------+--------+-----------------------
  develop   |    11 |   5200 | 5020.0000000000000000
  develop   |     7 |   4200 | 5020.0000000000000000
@@ -140,14 +150,16 @@ mydb->   FROM empsalary;
  sales     |     3 |   4800 | 4866.6666666666666667
  sales     |     1 |   5000 | 4866.6666666666666667
  sales     |     4 |   4800 | 4866.6666666666666667
-(10 rows)
+
 ```
 
-The `OVER` clause causes the `avg` aggregate function to be treated as a window function, computing the average accross rows that have the same *depname*.
+A window function call always contains an `OVER` clause directly following the window function's name and argument(s). The `OVER` clause determines exactly how the rows of the query are *split up for processing by the window function*.
 
-A window function call always contains an `OVER` clause directly following the window function's name and argument(s).
+The `OVER` clause in the example above causes the `avg` aggregate function to be treated as a window function, computing the average accross rows that have the same *depname*.
 
-The `OVER` clause determines exactly how the rows of the query are *split up for processing by the window function*. You can control the order in which rows are processed by window functions using `ORDER BY` within `OVER`:
+The `PARTITION BY` clause within `OVER` divides the rows into groups.
+
+You can control the order in which rows are processed by window functions using `ORDER BY` within `OVER`:
 
 ```sql
 mydb=> SELECT depname, empno, salary,
@@ -218,12 +230,12 @@ You can use a *sub-select* to filter or group rows after window calculations:
 
 ```sql
 mydb=> SELECT depname, empno, salary
-mydb->  FROM (
-mydb->    SELECT depname, empno, salary,
-mydb->           rank() OVER (PARTITION BY depname ORDER BY salary DESC, empno) AS pos
-mydb->      FROM empsalary
-mydb->  ) AS ss
-mydb->  WHERE pos < 3;
+mydb->   FROM (
+mydb->     SELECT depname, empno, salary,
+mydb->            rank() OVER (PARTITION BY depname ORDER BY salary DESC, empno) AS pos
+mydb->       FROM empsalary
+mydb->   ) AS sub_select
+mydb->   WHERE pos < 3;
   depname  | empno | salary 
 -----------+-------+--------
  develop   |     8 |   6000
@@ -273,10 +285,17 @@ CREATE TABLE cities (
 
 CREATE TABLE capitals (
     state      char(2) UNIQUE NOT NULL
-    ), INHERITS (cities);
+    ) INHERITS (cities);
 ```
 
 A row of *capitals inherits* all columns (name, population, and elevation) from its parent, *cities*.
+
+```sql
+mydb=> SELECT * FROM capitals;
+ name | population | elevation | state 
+------+------------+-----------+-------
+(0 rows)
+```
 
 `ONLY` can be used to indicate that a query should be run over only the specified table, and not tables below it in the inheritance hierarchy. e.g. `SELECT name, elevation FROM ONLY cities;`
 

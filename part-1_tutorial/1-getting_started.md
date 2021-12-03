@@ -47,7 +47,7 @@ We'll focus on *psql*.
 
 ```bash
 $ psql mydb
-psql (13.3 (Ubuntu 13.3-1.pgdg20.04+1))
+psql (14.1)
 Type "help" for help.
 
 mydb=>
@@ -57,22 +57,21 @@ You can now enter SQL queries and `psql` internal commands.
 
 ```psql
 mydb=> SELECT version();
-                                                            version                                                              
-----------------------------------------------------------------------------------------------------------------------------------
-PostgreSQL 13.3 (Ubuntu 13.3-1.pgdg20.04+1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 9.3.0-17ubuntu1~20.04) 9.3.0, 64-bit
+                                                 version                                                  
+----------------------------------------------------------------------------------------------------------
+ PostgreSQL 14.1 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 11.2.1 20210728 (Red Hat 11.2.1-1), 64-bit
 (1 row)
 
 mydb=> SELECT current_date;
-current_date 
+ current_date 
 --------------
-2021-05-26
+ 2021-12-03
 (1 row)
 
 mydb=> SELECT 1 + 2;
-?column? 
+ ?column? 
 ----------
-      3
-(1 row)
+        3
 
 mydb=> \?
 ```
