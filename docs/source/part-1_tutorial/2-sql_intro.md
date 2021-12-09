@@ -1,4 +1,4 @@
-# Introduction
+# SQL Introduction
 
 PostgreSQL is a *relational database management system* - it manages data stored in relations/**tables**.
 
@@ -65,7 +65,7 @@ You can also use the `COPY` command to load large amounts of data from *flat-tex
 
 Contents of a sample file named `cities.txt`:
 
-```txt
+```md
 Nairobi (-1.28333, 36.81667)
 Mombasa (-4.05466, 39.66359)
 ```
@@ -78,7 +78,7 @@ COPY cities FROM '/path/to/cities.txt'
 >
 > The psql `\copy` command is more user-friendly. It invokes `COPY FROM STDIN` or `COPY TO STDOUT`, and then fetches/stores the data in a file *accessible to the psql client*.
 
-```sql
+```psql
 \copy cities FROM '/path/to/cities.txt'
 ```
 

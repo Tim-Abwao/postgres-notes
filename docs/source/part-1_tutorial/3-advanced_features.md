@@ -1,17 +1,4 @@
-# Introduction
-
-This chapter focuses on more advanced features of SQL that *simplify management* and *prevent loss or corruption of data*.
-
-First, let's refresh the *weather* table:
-
-```sql
-mydb=> \i 'assets/weather.sql'
-BEGIN
-DROP TABLE
-CREATE TABLE
-INSERT 0 4
-COMMIT
-```
+# SQL Key Features
 
 ## 1. Views
 
