@@ -31,3 +31,4 @@ Data Manipulation
    part-2_the_sql_language/6-data_manipulation/6.1-inserting_data
    part-2_the_sql_language/6-data_manipulation/6.2-updating_data
    part-2_the_sql_language/6-data_manipulation/6.3-deleting_data
+   part-2_the_sql_language/6-data_manipulation/6.4-returning_data_from_modified_rows
