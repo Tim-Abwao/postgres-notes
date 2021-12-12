@@ -6,39 +6,33 @@ SQL Syntax
 
 .. toctree::
    :maxdepth: 2
+   :glob:
 
-   part-2_the_sql_language/4-sql_syntax/4.1-lexical_structure
+   part-2_the_sql_language/4-sql_syntax/*
 
 Data Definition
 ---------------
 
 .. toctree::
    :maxdepth: 2
+   :glob:
 
-   part-2_the_sql_language/5-data_definition/5.1-table_basics
-   part-2_the_sql_language/5-data_definition/5.2-default_values
-   part-2_the_sql_language/5-data_definition/5.3-generated_columns
-   part-2_the_sql_language/5-data_definition/5.4-constraints
-   part-2_the_sql_language/5-data_definition/5.5-system_columns
-   part-2_the_sql_language/5-data_definition/5.6-modifying_tables
+   part-2_the_sql_language/5-data_definition/*
 
 Data Manipulation
 -----------------
 
 .. toctree::
    :maxdepth: 2
+   :glob:
 
-   part-2_the_sql_language/6-data_manipulation/6.1-inserting_data
-   part-2_the_sql_language/6-data_manipulation/6.2-updating_data
-   part-2_the_sql_language/6-data_manipulation/6.3-deleting_data
-   part-2_the_sql_language/6-data_manipulation/6.4-returning_data_from_modified_rows
-
+   part-2_the_sql_language/6-data_manipulation/*
 
 Data Types
 ----------
 
 .. toctree::
    :maxdepth: 2
+   :glob:
 
-   part-2_the_sql_language/8-data_types/8.1-numeric_types
-   part-2_the_sql_language/8-data_types/8.2-monetary_types
+   part-2_the_sql_language/8-data_types/*
