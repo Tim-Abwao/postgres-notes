@@ -36,3 +36,11 @@ Data Types
    :glob:
 
    part-2_the_sql_language/8-data_types/*
+
+Functions & Operators
+---------------------
+.. toctree::
+   :maxdepth: 2
+   :glob:
+
+   part-2_the_sql_language/9-functions_and_operators/*
