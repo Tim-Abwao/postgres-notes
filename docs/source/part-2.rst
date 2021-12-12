@@ -41,3 +41,4 @@ Data Types
    :maxdepth: 2
 
    part-2_the_sql_language/8-data_types/8.1-numeric_types
+   part-2_the_sql_language/8-data_types/8.2-monetary_types
