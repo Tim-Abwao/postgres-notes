@@ -28,6 +28,15 @@ Data Manipulation
 
    part-2_the_sql_language/6-data_manipulation/*
 
+Queries
+-------
+
+.. toctree::
+   :maxdepth: 2
+   :glob:
+
+   part-2_the_sql_language/7-queries/*
+
 Data Types
 ----------
 
