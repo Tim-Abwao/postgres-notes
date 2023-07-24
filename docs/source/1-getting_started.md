@@ -1,13 +1,13 @@
 # Getting Started
 
-*PostgreSQL* uses a **client** / **server** model, with each session consisting of:
+*PostgreSQL* uses a *client/server* model. Each session consists of:
 
-1. A server process/program called `postgres`, which:
-   - manages the database files
+1. A server process called `postgres`, that:
+   - manages database files
    - accepts connections from client applications
    - performs database actions on behalf of clients.
 
-   The server process *starts a fork for each new client connection*. It can handle multiple concurrent client connections.
+   The server process can handle multiple concurrent clients by *starting a fork for each new client connection*.
 
 2. A client (frontend) application, which could be:
    - a text-oriented tool
@@ -15,63 +15,52 @@
    - a web server that accesses the database to display web pages
    - a specialized database maintenance tool.
 
-The client and the server *can be on different hosts*, communicating via a TCP/IP network connection. Just ensure that files you intend to use are accessible at both ends.
+The client and server *can be on different hosts*, communicating via a TCP/IP network connection. Just ensure that files you intend to use are accessible at both ends.
 
 ## The Command Line Interface
 
 ### 1. Creating a database
 
+Use the [createdb][createdb] command:
+
 ```bash
 createdb mydb
 ```
 
-If you don't provide a database name, the current username will be used.
+Database names shoud start with an alphabetic character, and must be <= 63 bytes long. If you don't provide a database name, the current username will be used.
 
 ### 2. Deleting a database
+
+Use the [dropdb][dropdb] command:
 
 ```bash
 dropdb mydb
 ```
 
-This permanently removes all files related to the database - it can't be undone. The database name must always be specified.
+Permanently removes all files related to the database. Can't be undone. Database name must always be specified.
+
+[createdb]: https://www.postgresql.org/docs/current/app-createdb.html
+[dropdb]: https://www.postgresql.org/docs/current/app-dropdb.html
 
 ### 3. Accessing a database
 
-You can access databases using:
+You can use:
 
 - the *PostgreSQL* interactive terminal program, `psql`
-- an existing graphical frontend tool e.g. `pgAdmin`
-- a custom application, using one of the several available language bindings.
+
+  ```bash
+  $ psql mydb
+  psql (15.3)
+  Type "help" for help.
+  
+  mydb=> SELECT version();
+                                                 version                                                  
+  ----------------------------------------------------------------------------------------------------------
+   PostgreSQL 15.3 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 13.1.1 20230426 (Red Hat 13.1.1-1), 64-bit
+  (1 row
+  ```
+
+- an existing graphical frontend tool e.g. [pgAdmin](https://www.pgadmin.org/)
+- a custom application, using available language bindings.
 
 We'll focus on *psql*.
-
-```bash
-$ psql mydb
-psql (14.1)
-Type "help" for help.
-
-mydb=>
-```
-
-You can now enter SQL queries and `psql` internal commands.
-
-```psql
-mydb=> SELECT version();
-                                                 version                                                  
-----------------------------------------------------------------------------------------------------------
- PostgreSQL 14.1 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 11.2.1 20210728 (Red Hat 11.2.1-1), 64-bit
-(1 row)
-
-mydb=> SELECT current_date;
- current_date 
---------------
- 2021-12-03
-(1 row)
-
-mydb=> SELECT 1 + 2;
- ?column? 
-----------
-        3
-
-mydb=> \?
-```
