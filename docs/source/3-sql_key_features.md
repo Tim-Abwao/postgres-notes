@@ -1,97 +1,129 @@
 # SQL Key Features
 
-## 1. Views
+First, let's refresh the sample data:
 
-Creating a view over a query *gives it a name that you can refer to* like an ordinary table:
+```bash
+$ dropdb mydb  # start afresh
+$ createdb mydb
+$ psql mydb 
+psql (15.3)
+Type "help" for help.
 
-```sql
-mydb=> CREATE VIEW avg_temp AS
-mydb->   SELECT city, avg((temp_hi + temp_lo) / 2)  AS avg_temp
-mydb->     FROM weather
-mydb->     GROUP BY city;
-CREATE VIEW
-mydb=> SELECT * FROM avg_temp;
-  city   |      avg_temp       
----------+---------------------
- Mombasa | 25.5000000000000000
- Nairobi | 16.5000000000000000
-(2 rows)
+mydb=> \i sample_tables.sql 
+BEGIN
+CREATE TABLE
+INSERT 0 10
+CREATE TABLE
+INSERT 0 8
+CREATE TABLE
+INSERT 0 15
+COMMIT
 ```
 
-Making liberal use of views is a key aspect of *good SQL database design*. You can build views upon other views.
+## 1. Views
+
+Creating a view over a query *gives it a name* that you can refer to like an ordinary table:
+
+```sql
+mydb=> CREATE VIEW price_info AS
+mydb->   SELECT pu.supplier_name, pu.product_name, pr.price AS selling_price,
+mydb->          pu.unit_price AS purchase_price, (pr.price - pu.unit_price) AS profit_per_unit
+mydb->     FROM purchases pu JOIN products pr ON pu.product_name = pr.name
+mydb->     ORDER BY profit_per_unit DESC;
+CREATE VIEW
+mydb=> SELECT * FROM price_info LIMIT 5;
+        supplier_name        | product_name | selling_price | purchase_price | profit_per_unit 
+-----------------------------+--------------+---------------+----------------+-----------------
+ Zing Gardens                | Watermelons  |         42.00 |          39.95 |            2.05
+ City Merchants              | Bananas      |         10.00 |           8.00 |            2.00
+ Green Thumb Corp.           | Spinach      |          7.50 |           5.95 |            1.55
+ ACME Fruits Ltd             | Bananas      |         10.00 |           8.50 |            1.50
+ Village Growers Association | Mangoes      |         30.00 |          28.50 |            1.50
+(5 rows)
+```
+
+Using views is considered *good SQL database design*. You can use views almost anywhere a table can be used. You can build views upon other views.
 
 ## 2. Foreign keys
 
 Foreign keys maintain *referential integrity*, ensuring that you can't insert values in one table that do not have a matching reference in another.
 
 ```sql
-CREATE TABLE cities_2 (
-    city     varchar(80) primary key,
-    location point
-);
-
-CREATE TABLE weather_2 (
-    city      varchar(80) references cities_2(city),
-    temp_lo   int,
-    temp_hi   int,
-    prcp      real,
-    date      date
-);
-
--- Populate the new tables
-INSERT INTO cities_2 SELECT * FROM cities;
-INSERT INTO weather_2 SELECT * FROM weather;
+mydb=> INSERT INTO purchases VALUES('Planet Farms', 'Coconuts', 10, 15.00, '2023-07-29');
+ERROR:  insert or update on table "purchases" violates foreign key constraint "purchases_product_name_fkey"
+DETAIL:  Key (product_name)=(Coconuts) is not present in table "products".
 ```
 
-```sql
-mydb=> INSERT INTO weather_2 (city, temp_hi, date)
-mydb->   VALUES ('Kampala', 25, '2021-05-27');
-ERROR:  insert or update on table "weather_2" violates foreign key constraint "weather_2_city_fkey"
-DETAIL:  Key (city)=(Kampala) is not present in table "cities_2".
-```
+More on *foreign keys* and other *constraints* later.
 
 ## 3. Transactions
 
 Transactions *bundle multiple steps into a single, all-or-nothing operation*.
 
-The steps in a transaction are invisible to other concurrent transactions, and if any one of them fails, none of them affects the database. This is referred to as **atomicity**.
-
 A transactional database guarantees that all the updates made by a transaction are *logged in permanent storage* (i.e. on disk) before the transaction is reported complete.
 
+Transactions are *atomic*: from the point of view of other transactions, they either happen completely or not at all. Intermediate states between the steps in a transaction are invisible to other concurrent transactions.
+
 ```sql
-BEGIN;  -- start transaction
-/*
-series of SQL statements (transaction block)
-*/
-COMMIT;  -- end transaction
+mydb=> BEGIN; -- record a purchase and update inventory
+BEGIN
+mydb=*> INSERT INTO purchases (supplier_name, product_name, units, unit_price, last_delivery_date)
+mydb-*>   VALUES ('Zing Gardens', 'Pineapples', 30, 33.75, '2023-07-30');
+INSERT 0 1
+mydb=*> UPDATE products SET items_in_stock = items_in_stock + 30
+mydb-*>   WHERE name = 'Pineapples';
+UPDATE 1
+mydb=*> COMMIT;
+COMMIT
 ```
 
-You can use the `ROLLBACK` command in case you wish to cancel the transaction.
+You can use the `ROLLBACK` command to cancel an ongoing transaction:
 
 ```sql
-BEGIN;  -- start transaction
-/*
-series of SQL statements (transaction block)
-*/
-ROLLBACK;  -- cancel transaction
+mydb=> BEGIN;
+BEGIN
+mydb=*> INSERT INTO products (name, items_in_stock, price) VALUES ('Pumpkins', 10, 12.00);
+INSERT 0 1
+mydb=*> ROLLBACK;
+ROLLBACK
+mydb=> SELECT * FROM products WHERE name = 'Pumpkins';  -- insert was undone by rollback
+ name | items_in_stock | price 
+------+----------------+-------
+(0 rows)
 ```
 
-You can use the `SAVEPOINT` command to define *savepoints*. Afterwards, you can use `ROLLBACK TO` to roll back to your savepoints. This saves you the trouble of starting all over.
+You can use the `SAVEPOINT` command to define *savepoints*. You can then use `ROLLBACK TO` to roll back to your savepoints as many times as you'll need to. No need to start all over.
 
 ```sql
-BEGIN;
-/*
-series of SQL statements
-*/
-SAVEPOINT my_savepoint;
-/*
-series of SQL statements with unintended consequences
-*/
-ROLLBACK TO my_savepoint;
-/*
-series of SQL statements yielding desired result
-*/
-COMMIT;
+mydb=> BEGIN;
+BEGIN
+mydb=*> INSERT INTO products (name, items_in_stock, price) VALUES ('Pumpkins', 10, 12.00);
+INSERT 0 1
+mydb=*> SELECT * FROM products WHERE name = 'Pumpkins';
+   name   | items_in_stock | price 
+----------+----------------+-------
+ Pumpkins |             10 | 12.00
+(1 row)
+
+mydb=*> SAVEPOINT added_pumpkins;
+SAVEPOINT
+mydb=*> UPDATE products SET price = 10 WHERE name = 'Pumpkins';
+UPDATE 1
+mydb=*> SELECT * FROM products WHERE name = 'Pumpkins';
+   name   | items_in_stock | price 
+----------+----------------+-------
+ Pumpkins |             10 | 10.00
+(1 row)
+
+mydb=*> ROLLBACK TO added_pumpkins;
+ROLLBACK
+mydb=*> SELECT * FROM products WHERE name = 'Pumpkins';
+   name   | items_in_stock | price 
+----------+----------------+-------
+ Pumpkins |             10 | 12.00
+(1 row)
+mydb=*> COMMIT;
+COMMIT
 ```
 
 ## 4. Window functions
@@ -100,190 +132,208 @@ A window function *performs a calculation across a set of table rows that are so
 
 Whereas aggregate functions group rows into single output rows, the rows in window fuctions retain their separate identities.
 
-```sql
-CREATE TABLE empsalary (
-    depname     varchar(15),
-    empno       int,
-    salary      int
-);
+A window function call always contains an `OVER` clause, which determines how the rows of the query are *split up for processing by the window function*.
 
-INSERT INTO empsalary (depname, empno, salary)
-VALUES
-  ('develop', 11, 5200),
-  ('develop', 7, 4200),
-  ('develop', 9, 4500),
-  ('develop', 8, 6000),
-  ('develop', 10, 5200),
-  ('personnel' , 5, 3500),
-  ('personnel' , 2, 3900),
-  ('sales' , 3, 4800),
-  ('sales' , 1, 5000),
-  ('sales' , 4, 4800);
-```
+A `PARTITION BY` clause within `OVER` divides the rows into groups.
+
+To compare the prices of products from different suppliers against the average:
 
 ```sql
-mydb=> SELECT depname, empno, salary,
-mydb->        avg(salary) OVER (PARTITION BY depname) AS dep_avg_salary
-mydb->   FROM empsalary;
-  depname  | empno | salary |    dep_avg_salary     
------------+-------+--------+-----------------------
- develop   |    11 |   5200 | 5020.0000000000000000
- develop   |     7 |   4200 | 5020.0000000000000000
- develop   |     9 |   4500 | 5020.0000000000000000
- develop   |     8 |   6000 | 5020.0000000000000000
- develop   |    10 |   5200 | 5020.0000000000000000
- personnel |     5 |   3500 | 3700.0000000000000000
- personnel |     2 |   3900 | 3700.0000000000000000
- sales     |     3 |   4800 | 4866.6666666666666667
- sales     |     1 |   5000 | 4866.6666666666666667
- sales     |     4 |   4800 | 4866.6666666666666667
-
+mydb=> SELECT product_name, supplier_name, unit_price,
+mydb->        avg(unit_price) OVER (PARTITION BY product_name) AS avg_price
+mydb->   FROM purchases
+mydb->   ORDER BY avg_price DESC, unit_price DESC;
+ product_name |        supplier_name        | unit_price |      avg_price      
+--------------+-----------------------------+------------+---------------------
+ Watermelons  | Zing Gardens                |      39.95 | 39.9500000000000000
+ Pineapples   | Zing Gardens                |      33.75 | 33.7500000000000000
+ Pineapples   | Zing Gardens                |      33.75 | 33.7500000000000000
+ Mangoes      | Tropical Paradise Ltd       |      29.05 | 28.7750000000000000
+ Mangoes      | Village Growers Association |      28.50 | 28.7750000000000000
+ Apples       | Planet Farms                |      24.10 | 23.8000000000000000
+ Apples       | Jolly Grocers               |      23.80 | 23.8000000000000000
+ Apples       | Village Growers Association |      23.50 | 23.8000000000000000
+ Bananas      | City Merchants              |       9.00 |  8.5000000000000000
+ Bananas      | ACME Fruits Ltd             |       8.50 |  8.5000000000000000
+ Bananas      | City Merchants              |       8.00 |  8.5000000000000000
+ Spinach      | Green Thumb Corp.           |       5.95 |  5.9500000000000000
+ Kiwis        | Tropical Paradise Ltd       |       4.00 |  4.0000000000000000
+ Tomatoes     | Village Growers Association |       3.80 |  3.8000000000000000
+ Lemons       | Tropical Paradise Ltd       |       3.25 |  3.2500000000000000
+ Cherries     | Jolly Grocers               |       2.15 |  2.1500000000000000
+(16 rows)
 ```
 
-A window function call always contains an `OVER` clause directly following the window function's name and argument(s). The `OVER` clause determines exactly how the rows of the query are *split up for processing by the window function*.
-
-The `OVER` clause in the example above causes the `avg` aggregate function to be treated as a window function, computing the average accross rows that have the same *depname*.
-
-The `PARTITION BY` clause within `OVER` divides the rows into groups.
-
-You can control the order in which rows are processed by window functions using `ORDER BY` within `OVER`:
+You can control the order in which rows are processed by window functions using `ORDER BY` within `OVER`.
 
 ```sql
-mydb=> SELECT depname, empno, salary,
-mydb->        rank() OVER (PARTITION BY depname ORDER BY salary DESC)
-mydb->   FROM empsalary;
-  depname  | empno | salary | rank 
------------+-------+--------+------
- develop   |     8 |   6000 |    1
- develop   |    10 |   5200 |    2
- develop   |    11 |   5200 |    2
- develop   |     9 |   4500 |    4
- develop   |     7 |   4200 |    5
- personnel |     2 |   3900 |    1
- personnel |     5 |   3500 |    2
- sales     |     1 |   5000 |    1
- sales     |     3 |   4800 |    2
- sales     |     4 |   4800 |    2
-(10 rows)
+mydb=> SELECT product_name, supplier_name, unit_price,
+mydb->        rank() OVER (PARTITION BY product_name ORDER BY unit_price DESC)
+mydb->   FROM purchases;
+ product_name |        supplier_name        | unit_price | rank 
+--------------+-----------------------------+------------+------
+ Apples       | Planet Farms                |      24.10 |    1
+ Apples       | Jolly Grocers               |      23.80 |    2
+ Apples       | Village Growers Association |      23.50 |    3
+ Bananas      | City Merchants              |       9.00 |    1
+ Bananas      | ACME Fruits Ltd             |       8.50 |    2
+ Bananas      | City Merchants              |       8.00 |    3
+ Cherries     | Jolly Grocers               |       2.15 |    1
+ Kiwis        | Tropical Paradise Ltd       |       4.00 |    1
+ Lemons       | Tropical Paradise Ltd       |       3.25 |    1
+ Mangoes      | Tropical Paradise Ltd       |      29.05 |    1
+ Mangoes      | Village Growers Association |      28.50 |    2
+ Pineapples   | Zing Gardens                |      33.75 |    1
+ Pineapples   | Zing Gardens                |      33.75 |    1
+ Spinach      | Green Thumb Corp.           |       5.95 |    1
+ Tomatoes     | Village Growers Association |       3.80 |    1
+ Watermelons  | Zing Gardens                |      39.95 |    1
+(16 rows)
+
 ```
 
-For each row, there's a set of rows within its partition called its *window frame*.
-
-When `PARTITION BY` and particularly `ORDER BY` are omitted, the default frame consists of all rows in the one partition:
+For each row, there's a set of rows within its partition called its *window frame*. By default, including `ORDER BY` limits the frame to "from start to current row (plus any rows equal to current row)":
 
 ```sql
-mydb=> SELECT salary, sum(salary) OVER () FROM empsalary;
- salary |  sum  
---------+-------
-   5200 | 47100
-   4200 | 47100
-   4500 | 47100
-   6000 | 47100
-   5200 | 47100
-   3500 | 47100
-   3900 | 47100
-   4800 | 47100
-   5000 | 47100
-   4800 | 47100
-(10 rows)
+mydb=> SELECT unit_price, sum(unit_price) OVER (ORDER BY unit_price) FROM purchases;
+ unit_price |  sum   
+------------+--------
+       2.15 |   2.15
+       3.25 |   5.40
+       3.80 |   9.20
+       4.00 |  13.20
+       5.95 |  19.15
+       8.00 |  27.15
+       8.50 |  35.65
+       9.00 |  44.65
+      23.50 |  68.15
+      23.80 |  91.95
+      24.10 | 116.05
+      28.50 | 144.55
+      29.05 | 173.60
+      33.75 | 241.10
+      33.75 | 241.10
+      39.95 | 281.05
+(16 rows)
 ```
 
-By default, if `ORDER BY` is supplied, then the frame consists of all rows *from the start* of the partition up through the current row, *plus any following rows* that are *equal to the current row* according to the ORDER BY clause.
-
-In the example below, the sum is taken from the first (lowest) salary up through the current one, including any duplicates of the current one:
+When `PARTITION BY` and `ORDER BY` are omitted, the default frame consists of all the rows in one partition:
 
 ```sql
-mydb=> SELECT salary, sum(salary) OVER (ORDER BY salary) FROM empsalary;
- salary |  sum  
---------+-------
-   3500 |  3500
-   3900 |  7400
-   4200 | 11600
-   4500 | 16100
-   4800 | 25700
-   4800 | 25700
-   5000 | 30700
-   5200 | 41100
-   5200 | 41100
-   6000 | 47100
-(10 rows)
+mydb=> SELECT unit_price, sum(unit_price) OVER () FROM purchases;
+ unit_price |  sum   
+------------+--------
+       8.50 | 281.05
+       5.95 | 281.05
+      23.80 | 281.05
+      24.10 | 281.05
+       9.00 | 281.05
+      39.95 | 281.05
+      28.50 | 281.05
+       3.25 | 281.05
+       4.00 | 281.05
+       2.15 | 281.05
+      33.75 | 281.05
+       8.00 | 281.05
+      29.05 | 281.05
+       3.80 | 281.05
+      23.50 | 281.05
+      33.75 | 281.05
+(16 rows)
 ```
 
-> **NOTE:** Window functions are *permitted only in the SELECT list and the ORDER BY clause* of the query. They are forbidden elsewhere, such as in GROUP BY, HAVING and WHERE clauses. This is because they logically execute after the processing of those clauses.
+> **NOTE:** Window functions are *only permitted in the `SELECT` list and the `ORDER BY` clause* of the query. They are forbidden elsewhere, such as in `GROUP BY`, `HAVING` and `WHERE`; since they logically execute after the processing of these clauses.
 >
-> Furthermore, window functions execute after non-window aggregate functions. This means it is valid to include an aggregate function call in the arguments of a window function, but not vice versa.
+> Additionally, window functions execute after non-window aggregate functions. This means it is valid to include an aggregate function call in the arguments of a window function, but not vice versa.
 
-You can use a *sub-select* to filter or group rows after window calculations:
-
-```sql
-mydb=> SELECT depname, empno, salary
-mydb->   FROM (
-mydb->     SELECT depname, empno, salary,
-mydb->            rank() OVER (PARTITION BY depname ORDER BY salary DESC, empno) AS pos
-mydb->       FROM empsalary
-mydb->   ) AS sub_select
-mydb->   WHERE pos < 3;
-  depname  | empno | salary 
------------+-------+--------
- develop   |     8 |   6000
- develop   |    10 |   5200
- personnel |     2 |   3900
- personnel |     5 |   3500
- sales     |     1 |   5000
- sales     |     3 |   4800
-(6 rows)
-```
-
-Shows rows from the inner query having rank less than 3 (the top 2).
-
-When a query involves *multiple window functions*, each windowing behavior can be named in a `WINDOW` clause and then referenced in `OVER`:
+A query can have multiple window functions. If the same windowing behaviour is required, you can avoid duplication using a `WINDOW` clause that is then referenced in `OVER`:
 
 ```sql
-mydb=> SELECT sum(salary) OVER w, avg(salary) OVER w
-mydb->   FROM empsalary
-mydb->   WINDOW w AS (PARTITION BY depname ORDER BY salary DESC);
-  sum  |          avg          
--------+-----------------------
-  6000 | 6000.0000000000000000
- 16400 | 5466.6666666666666667
- 16400 | 5466.6666666666666667
- 20900 | 5225.0000000000000000
- 25100 | 5020.0000000000000000
-  3900 | 3900.0000000000000000
-  7400 | 3700.0000000000000000
-  5000 | 5000.0000000000000000
- 14600 | 4866.6666666666666667
- 14600 | 4866.6666666666666667
-(10 rows)
+mydb=> SELECT product_name, unit_price, avg(unit_price) OVER w, stddev(unit_price) OVER w
+mydb->   FROM purchases 
+mydb->   WINDOW w AS (PARTITION BY product_name);
+ product_name | unit_price |         avg         |         stddev         
+--------------+------------+---------------------+------------------------
+ Apples       |      24.10 | 23.8000000000000000 | 0.30000000000000000000
+ Apples       |      23.50 | 23.8000000000000000 | 0.30000000000000000000
+ Apples       |      23.80 | 23.8000000000000000 | 0.30000000000000000000
+ Bananas      |       8.50 |  8.5000000000000000 | 0.50000000000000000000
+ Bananas      |       9.00 |  8.5000000000000000 | 0.50000000000000000000
+ Bananas      |       8.00 |  8.5000000000000000 | 0.50000000000000000000
+ Cherries     |       2.15 |  2.1500000000000000 |                       
+ Kiwis        |       4.00 |  4.0000000000000000 |                       
+ Lemons       |       3.25 |  3.2500000000000000 |                       
+ Mangoes      |      28.50 | 28.7750000000000000 | 0.38890872965260113842
+ Mangoes      |      29.05 | 28.7750000000000000 | 0.38890872965260113842
+ Pineapples   |      33.75 | 33.7500000000000000 |                      0
+ Pineapples   |      33.75 | 33.7500000000000000 |                      0
+ Spinach      |       5.95 |  5.9500000000000000 |                       
+ Tomatoes     |       3.80 |  3.8000000000000000 |                       
+ Watermelons  |      39.95 | 39.9500000000000000 |                       
+(16 rows)
 ```
 
 ## 5. Inheritance
 
 Inheritance allows a table to derive columns from zero or more parent tables.
 
-Schema modifications to the parent(s) normally propagate to children as well, and by default the data of the child table is included in scans of the parent(s).
-
 ```sql
-CREATE TABLE cities (
-    name       text,
-    population real,
-    elevation  int
-);
-
-CREATE TABLE capitals (
-    state      char(2) UNIQUE NOT NULL
-    ) INHERITS (cities);
+mydb=> CREATE TABLE exotic_fruits (
+mydb(>   relative_size  varchar(12),
+mydb(>   shelf_life     interval
+mydb(> ) INHERITS (products);
+CREATE TABLE                                                      
+mydb=> INSERT INTO exotic_fruits (name, items_in_stock, price, relative_size, shelf_life)
+mydb->   VALUES ('Pomegranates', 25, 32.00, 'small', '2 weeks');
+INSERT 0 1
+mydb=> SELECT * FROM exotic_fruits;
+     name     | items_in_stock | price | relative_size | shelf_life 
+--------------+----------------+-------+---------------+------------
+ Pomegranates |             25 | 32.00 | small         | 14 days
+(1 row)
 ```
 
-A row of *capitals inherits* all columns (name, population, and elevation) from its parent, *cities*.
+A row of *exotic_fruits* inherits all columns (name, items_in_stock and price) from its parent, *products*.
+
+By default, the data from a child table is included in scans of its parents (e.g Pomegranates from *exotic_fruits* automatically appears in scans of *products*):
 
 ```sql
-mydb=> SELECT * FROM capitals;
- name | population | elevation | state 
-------+------------+-----------+-------
-(0 rows)
+mydb=> SELECT * FROM products;
+     name     | items_in_stock | price 
+--------------+----------------+-------
+ Apples       |            100 | 25.00
+ Bananas      |             32 | 10.00
+ Cherries     |             74 |  3.00
+ Kiwis        |             54 |  5.00
+ Lemons       |             49 |  4.00
+ Mangoes      |             38 | 30.00
+ Pineapples   |             26 | 35.00
+ Spinach      |             19 |  7.50
+ Tomatoes     |             43 |  4.50
+ Watermelons  |             22 | 42.00
+ Pumpkins     |             10 | 12.00
+ Pomegranates |             25 | 32.00
+(12 rows)
 ```
 
-`ONLY` can be used to indicate that a query should be run over only the specified table, and not tables below it in the inheritance hierarchy. e.g. `SELECT name, elevation FROM ONLY cities;`
+`ONLY` can be used to indicate that a query should be run over only the specified table, and not tables below it in the inheritance hierarchy:
+
+```sql
+mydb=> SELECT * FROM ONLY products;
+    name     | items_in_stock | price 
+-------------+----------------+-------
+ Apples      |            100 | 25.00
+ Bananas     |             32 | 10.00
+ Cherries    |             74 |  3.00
+ Kiwis       |             54 |  5.00
+ Lemons      |             49 |  4.00
+ Mangoes     |             38 | 30.00
+ Pineapples  |             26 | 35.00
+ Spinach     |             19 |  7.50
+ Tomatoes    |             43 |  4.50
+ Watermelons |             22 | 42.00
+ Pumpkins    |             10 | 12.00
+(11 rows)
+```
 
 More on inheritance later.
