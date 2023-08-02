@@ -6,3 +6,4 @@ SQL Syntax
    :glob:
 
    content/4-sql_syntax/*
+   4.2-value_expressions
