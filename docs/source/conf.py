@@ -25,7 +25,14 @@ author = " "
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["myst_parser", "sphinx.ext.githubpages"]
+extensions = ["myst_parser", "sphinx_copybutton", "sphinx.ext.githubpages"]
+
+# myst_parser configuration
+myst_enable_extensions = ["attrs_block"]
+
+# Sphinx_copybutton configuration
+copybutton_exclude = ".linenos, .gp, .go, .gr, .gs"
+copybutton_selector = "div:not(.no-copybutton) > div.highlight > pre"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
