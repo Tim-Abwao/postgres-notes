@@ -1,14 +1,18 @@
-# SQL Key Features
+# Intermediate
 
 First, let's refresh the sample data:
 
-```bash
+```console
 $ dropdb mydb  # start afresh
 $ createdb mydb
 $ psql mydb 
 psql (15.3)
 Type "help" for help.
 
+mydb=> 
+```
+
+```psql
 mydb=> \i sample_tables.sql 
 BEGIN
 CREATE TABLE
@@ -24,7 +28,7 @@ COMMIT
 
 Creating a view over a query *gives it a name* that you can refer to like an ordinary table:
 
-```sql
+```psql
 mydb=> CREATE VIEW price_info AS
 mydb->   SELECT pu.supplier_name, pu.product_name, pr.price AS selling_price,
 mydb->          pu.unit_price AS purchase_price, (pr.price - pu.unit_price) AS profit_per_unit
@@ -48,7 +52,7 @@ Using views is considered *good SQL database design*. You can use views almost a
 
 Foreign keys maintain *referential integrity*, ensuring that you can't insert values in one table that do not have a matching reference in another.
 
-```sql
+```psql
 mydb=> INSERT INTO purchases VALUES('Planet Farms', 'Coconuts', 10, 15.00, '2023-07-29');
 ERROR:  insert or update on table "purchases" violates foreign key constraint "purchases_product_name_fkey"
 DETAIL:  Key (product_name)=(Coconuts) is not present in table "products".
@@ -64,7 +68,9 @@ A transactional database guarantees that all the updates made by a transaction a
 
 Transactions are *atomic*: from the point of view of other transactions, they either happen completely or not at all. Intermediate states between the steps in a transaction are invisible to other concurrent transactions.
 
-```sql
+{.no-copybutton}
+
+```psql
 mydb=> BEGIN; -- record a purchase and update inventory
 BEGIN
 mydb=*> INSERT INTO purchases (supplier_name, product_name, units, unit_price, last_delivery_date)
@@ -79,7 +85,9 @@ COMMIT
 
 You can use the `ROLLBACK` command to cancel an ongoing transaction:
 
-```sql
+{.no-copybutton emphasize-lines=5}
+
+```psql
 mydb=> BEGIN;
 BEGIN
 mydb=*> INSERT INTO products (name, items_in_stock, price) VALUES ('Pumpkins', 10, 12.00);
@@ -94,7 +102,9 @@ mydb=> SELECT * FROM products WHERE name = 'Pumpkins';  -- insert was undone by 
 
 You can use the `SAVEPOINT` command to define *savepoints*. You can then use `ROLLBACK TO` to roll back to your savepoints as many times as you'll need to. No need to start all over.
 
-```sql
+{.no-copybutton emphasize-lines=11}
+
+```psql
 mydb=> BEGIN;
 BEGIN
 mydb=*> INSERT INTO products (name, items_in_stock, price) VALUES ('Pumpkins', 10, 12.00);
@@ -138,7 +148,7 @@ A `PARTITION BY` clause within `OVER` divides the rows into groups.
 
 To compare the prices of products from different suppliers against the average:
 
-```sql
+```psql
 mydb=> SELECT product_name, supplier_name, unit_price,
 mydb->        avg(unit_price) OVER (PARTITION BY product_name) AS avg_price
 mydb->   FROM purchases
@@ -166,7 +176,7 @@ mydb->   ORDER BY avg_price DESC, unit_price DESC;
 
 You can control the order in which rows are processed by window functions using `ORDER BY` within `OVER`.
 
-```sql
+```psql
 mydb=> SELECT product_name, supplier_name, unit_price,
 mydb->        rank() OVER (PARTITION BY product_name ORDER BY unit_price DESC)
 mydb->   FROM purchases;
@@ -194,7 +204,7 @@ mydb->   FROM purchases;
 
 For each row, there's a set of rows within its partition called its *window frame*. By default, including `ORDER BY` limits the frame to "from start to current row (plus any rows equal to current row)":
 
-```sql
+```psql
 mydb=> SELECT unit_price, sum(unit_price) OVER (ORDER BY unit_price) FROM purchases;
  unit_price |  sum   
 ------------+--------
@@ -219,7 +229,7 @@ mydb=> SELECT unit_price, sum(unit_price) OVER (ORDER BY unit_price) FROM purcha
 
 When `PARTITION BY` and `ORDER BY` are omitted, the default frame consists of all the rows in one partition:
 
-```sql
+```psql
 mydb=> SELECT unit_price, sum(unit_price) OVER () FROM purchases;
  unit_price |  sum   
 ------------+--------
@@ -242,13 +252,15 @@ mydb=> SELECT unit_price, sum(unit_price) OVER () FROM purchases;
 (16 rows)
 ```
 
-> **NOTE:** Window functions are *only permitted in the `SELECT` list and the `ORDER BY` clause* of the query. They are forbidden elsewhere, such as in `GROUP BY`, `HAVING` and `WHERE`; since they logically execute after the processing of these clauses.
->
-> Additionally, window functions execute after non-window aggregate functions. This means it is valid to include an aggregate function call in the arguments of a window function, but not vice versa.
+```{note}
+Window functions are *only permitted in the `SELECT` list and the `ORDER BY` clause* of the query. They are forbidden elsewhere, such as in `GROUP BY`, `HAVING` and `WHERE`; since they logically execute after the processing of these clauses.
+
+Additionally, window functions execute after non-window aggregate functions. This means it is valid to include an aggregate function call in the arguments of a window function, but not vice versa.
+```
 
 A query can have multiple window functions. If the same windowing behaviour is required, you can avoid duplication using a `WINDOW` clause that is then referenced in `OVER`:
 
-```sql
+```psql
 mydb=> SELECT product_name, unit_price, avg(unit_price) OVER w, stddev(unit_price) OVER w
 mydb->   FROM purchases 
 mydb->   WINDOW w AS (PARTITION BY product_name);
@@ -277,7 +289,7 @@ mydb->   WINDOW w AS (PARTITION BY product_name);
 
 Inheritance allows a table to derive columns from zero or more parent tables.
 
-```sql
+```psql
 mydb=> CREATE TABLE exotic_fruits (
 mydb(>   relative_size  varchar(12),
 mydb(>   shelf_life     interval
@@ -297,7 +309,7 @@ A row of *exotic_fruits* inherits all columns (name, items_in_stock and price) f
 
 By default, the data from a child table is included in scans of its parents (e.g Pomegranates from *exotic_fruits* automatically appears in scans of *products*):
 
-```sql
+```psql
 mydb=> SELECT * FROM products;
      name     | items_in_stock | price 
 --------------+----------------+-------
@@ -318,7 +330,7 @@ mydb=> SELECT * FROM products;
 
 `ONLY` can be used to indicate that a query should be run over only the specified table, and not tables below it in the inheritance hierarchy:
 
-```sql
+```psql
 mydb=> SELECT * FROM ONLY products;
     name     | items_in_stock | price 
 -------------+----------------+-------

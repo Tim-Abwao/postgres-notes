@@ -10,8 +10,6 @@ Study notes based on the `PostgreSQL docs <https://www.postgresql.org/docs/>`_. 
    :caption: Contents:
 
    1-getting_started
-   2-sql_intro
-   3-sql_key_features
    4-sql_syntax
    5-data_definition
    6-data_manipulation
