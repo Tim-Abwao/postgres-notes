@@ -6,7 +6,7 @@ Study notes based on the `PostgreSQL docs <https://www.postgresql.org/docs/>`_. 
 *PostgreSQL* is released under the `PostgreSQL License <https://www.postgresql.org/about/licence/>`_.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
    1-getting_started
